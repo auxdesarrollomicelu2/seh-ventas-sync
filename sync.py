@@ -110,6 +110,20 @@ def sincronizar_ventas() -> Dict[str, Any]:
             
             logger.info(f"✅ Contacto: {contacto_id}")
             
+            # Verificar si el contacto ya tiene una oportunidad abierta en este pipeline
+            logger.info(f"🔎 Verificando si el contacto ya tiene oportunidad abierta...")
+            tiene_opp_abierta = ghl_client.contacto_tiene_oportunidad_abierta(
+                contacto_id=contacto_id,
+                pipeline_id=settings.ghl_pipeline_id
+            )
+            
+            if tiene_opp_abierta:
+                logger.info(f"⏭️  Contacto ya tiene oportunidad abierta en este pipeline, omitida")
+                omitidas += 1
+                continue
+            
+            logger.info(f"✅ Contacto libre para crear nueva oportunidad")
+            
             # Crear oportunidad
             logger.info(f"💼 Creando oportunidad con valor ${valor:,.0f}...")
             oportunidad_id = ghl_client.crear_oportunidad(

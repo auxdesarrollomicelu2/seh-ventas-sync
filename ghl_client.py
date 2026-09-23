@@ -134,6 +134,60 @@ class GHLClient:
             logger.error(f"Excepción upsert contacto: {e}", exc_info=True)
             return None
     
+    def contacto_tiene_oportunidad_abierta(
+        self, 
+        contacto_id: str, 
+        pipeline_id: str
+    ) -> bool:
+        """
+        Verifica si un contacto ya tiene una oportunidad abierta en un pipeline
+        
+        Args:
+            contacto_id: ID del contacto en GHL
+            pipeline_id: ID del pipeline
+            
+        Returns:
+            True si tiene oportunidad abierta, False si no
+        """
+        if settings.dry_run:
+            logger.info(f"[DRY_RUN] Verificar si contacto {contacto_id} tiene oportunidad abierta")
+            return False
+        
+        url = f"{self.base_url}/opportunities/search"
+        
+        params = {
+            "locationId": self.location_id,
+            "pipelineId": pipeline_id,
+            "contactId": contacto_id,
+            "status": "open"  # Solo oportunidades abiertas
+        }
+        
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(
+                    url,
+                    headers=self._get_headers(),
+                    params=params
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    opportunities = data.get("opportunities", [])
+                    
+                    if len(opportunities) > 0:
+                        logger.info(f"Contacto {contacto_id} tiene {len(opportunities)} oportunidad(es) abierta(s)")
+                        return True
+                    
+                    logger.info(f"Contacto {contacto_id} no tiene oportunidades abiertas")
+                    return False
+                else:
+                    logger.warning(f"Error verificar oportunidades del contacto: {response.status_code}")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Excepción verificar oportunidades del contacto: {e}", exc_info=True)
+            return False
+    
     def buscar_oportunidad_por_nombre(self, nombre_oportunidad: str) -> Optional[str]:
         """
         Busca oportunidad por nombre en el pipeline
