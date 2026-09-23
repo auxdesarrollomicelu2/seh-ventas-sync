@@ -18,11 +18,11 @@ TIMEZONE_COLOMBIA = timezone('America/Bogota')
 def job_sincronizar():
     """Job que ejecuta la sincronización"""
     try:
-        logger.info("=== Scheduler: Iniciando sincronización automática ===")
+        logger.info("⏰ Scheduler ejecutando...")
         resultado = sincronizar_ventas()
-        logger.info(f"Scheduler: Completado - {resultado}")
     except Exception as e:
-        logger.error(f"Scheduler: Error en sincronización - {e}", exc_info=True)
+        logger.error(f"❌ Scheduler error: {e}")
+
 
 
 def iniciar_scheduler():

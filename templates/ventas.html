@@ -169,6 +169,74 @@
             transform: translateY(0);
         }
         
+        .scheduler-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .scheduler-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.active {
+            background: #10b981;
+        }
+        
+        .status-indicator.paused {
+            background: #ef4444;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .btn-toggle {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-pause {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-pause:hover {
+            background: #dc2626;
+        }
+        
+        .btn-resume {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-resume:hover {
+            background: #059669;
+        }
+        
         small {
             color: #6b7280;
             font-size: 13px;
@@ -318,6 +386,18 @@
         </div>
         
         <div class="card">
+            <div class="scheduler-control">
+                <div class="scheduler-status">
+                    <span class="status-indicator" id="status-indicator"></span>
+                    <span id="scheduler-status-text">Cargando estado...</span>
+                </div>
+                <button class="btn-toggle" id="toggle-scheduler" onclick="toggleScheduler()" style="display:none;">
+                    ⏸️ Pausar Scheduler
+                </button>
+            </div>
+        </div>
+        
+        <div class="card">
             <div class="form-section">
                 <div class="form-group">
                     <label for="fecha-desde">📅 Consultar ventas desde:</label>
@@ -387,6 +467,88 @@
     
     <script>
         const API_KEY = 'K8mQ4xR7vN2pL9zT6wY3cA5s';
+        
+        // ============================================
+        // SCHEDULER CONTROL
+        // ============================================
+        
+        async function loadSchedulerStatus() {
+            try {
+                const response = await fetch('/sync/scheduler/status', {
+                    headers: { 'x-api-key': API_KEY }
+                });
+                
+                if (!response.ok) throw new Error('Error al obtener estado');
+                
+                const data = await response.json();
+                updateSchedulerUI(data.running);
+            } catch (error) {
+                console.error('Error cargando estado del scheduler:', error);
+                document.getElementById('scheduler-status-text').textContent = 'Error al cargar estado';
+            }
+        }
+        
+        function updateSchedulerUI(isRunning) {
+            const indicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('scheduler-status-text');
+            const toggleBtn = document.getElementById('toggle-scheduler');
+            
+            if (isRunning) {
+                indicator.className = 'status-indicator active';
+                statusText.textContent = '🟢 Scheduler activo (ejecuta cada 10 min)';
+                toggleBtn.textContent = '⏸️ Pausar Scheduler';
+                toggleBtn.className = 'btn-toggle btn-pause';
+            } else {
+                indicator.className = 'status-indicator paused';
+                statusText.textContent = '🔴 Scheduler pausado';
+                toggleBtn.textContent = '▶️ Reanudar Scheduler';
+                toggleBtn.className = 'btn-toggle btn-resume';
+            }
+            
+            toggleBtn.style.display = 'block';
+        }
+        
+        async function toggleScheduler() {
+            const toggleBtn = document.getElementById('toggle-scheduler');
+            const isPausing = toggleBtn.textContent.includes('Pausar');
+            
+            const action = isPausing ? 'pause' : 'resume';
+            const actionText = isPausing ? 'pausar' : 'reanudar';
+            
+            if (!confirm(`¿Estás seguro de ${actionText} el scheduler automático?`)) {
+                return;
+            }
+            
+            toggleBtn.disabled = true;
+            toggleBtn.style.opacity = '0.6';
+            
+            try {
+                const response = await fetch(`/sync/scheduler/${action}`, {
+                    method: 'POST',
+                    headers: { 'x-api-key': API_KEY }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || `Error al ${actionText}`);
+                }
+                
+                // Actualizar UI
+                await loadSchedulerStatus();
+                
+                alert(`✅ Scheduler ${isPausing ? 'pausado' : 'reanudado'} correctamente`);
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            } finally {
+                toggleBtn.disabled = false;
+                toggleBtn.style.opacity = '1';
+            }
+        }
+        
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
         
         function formatMoney(amount) {
             return new Intl.NumberFormat('es-CO', {
@@ -572,6 +734,15 @@
                 btn.style.opacity = '1';
             }
         }
+        
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        
+        // Cargar estado del scheduler al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSchedulerStatus();
+        });
     </script>
 </body>
 </html>

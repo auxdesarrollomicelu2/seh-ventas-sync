@@ -80,10 +80,9 @@ class GHLClient:
                 )
                 
                 if response.status_code in [200, 201]:
-                    logger.info(f"Tag '{tag}' agregado al contacto {contacto_id}")
                     return True
                 else:
-                    logger.error(f"Error agregar tag: {response.status_code} - {response.text}")
+                    logger.error(f"Error agregar tag: {response.status_code}")
                     return False
                     
         except Exception as e:
@@ -124,10 +123,9 @@ class GHLClient:
                 if response.status_code in [200, 201]:
                     data = response.json()
                     contact_id = data.get("contact", {}).get("id")
-                    logger.info(f"Contacto upsert exitoso: {contact_id}")
                     return contact_id
                 else:
-                    logger.error(f"Error upsert contacto: {response.status_code} - {response.text}")
+                    logger.error(f"Error upsert contacto: {response.status_code}")
                     return None
                     
         except Exception as e:
@@ -175,13 +173,10 @@ class GHLClient:
                     opportunities = data.get("opportunities", [])
                     
                     if len(opportunities) > 0:
-                        logger.info(f"Contacto {contacto_id} tiene {len(opportunities)} oportunidad(es) abierta(s)")
                         return True
                     
-                    logger.info(f"Contacto {contacto_id} no tiene oportunidades abiertas")
                     return False
                 else:
-                    logger.warning(f"Error verificar oportunidades del contacto: {response.status_code}")
                     return False
                     
         except Exception as e:
@@ -226,13 +221,10 @@ class GHLClient:
                     for opp in opportunities:
                         if opp.get("name") == nombre_oportunidad:
                             opp_id = opp.get("id")
-                            logger.info(f"Oportunidad encontrada: {opp_id}")
                             return opp_id
                     
-                    logger.info(f"Oportunidad '{nombre_oportunidad}' no encontrada")
                     return None
                 else:
-                    logger.warning(f"Error buscar oportunidad: {response.status_code}")
                     return None
                     
         except Exception as e:
@@ -286,10 +278,9 @@ class GHLClient:
                 if response.status_code in [200, 201]:
                     data = response.json()
                     opp_id = data.get("opportunity", {}).get("id") or data.get("id")
-                    logger.info(f"Oportunidad creada: {opp_id}")
                     return opp_id
                 else:
-                    logger.error(f"Error crear oportunidad: {response.status_code} - {response.text}")
+                    logger.error(f"Error crear oportunidad: {response.status_code}")
                     return None
                     
         except Exception as e:

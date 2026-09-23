@@ -178,6 +178,111 @@ def ejecutar_sincronizacion() -> tuple[Dict[str, Any], int]:
         }), 500
 
 
+@app.route("/sync/scheduler/status", methods=["GET"])
+@require_api_key
+def scheduler_status() -> tuple[Dict[str, Any], int]:
+    """
+    Obtiene el estado del scheduler
+    Requiere header: x-api-key
+    
+    Returns:
+        Estado del scheduler
+    """
+    global scheduler
+    
+    if scheduler is None:
+        return jsonify({
+            "running": False,
+            "message": "Scheduler no inicializado"
+        }), 200
+    
+    is_running = scheduler.running
+    
+    return jsonify({
+        "running": is_running,
+        "interval_minutes": settings.sync_intervalo_min,
+        "message": "Scheduler activo" if is_running else "Scheduler pausado"
+    }), 200
+
+
+@app.route("/sync/scheduler/pause", methods=["POST"])
+@require_api_key
+def pause_scheduler() -> tuple[Dict[str, Any], int]:
+    """
+    Pausa el scheduler automático
+    Requiere header: x-api-key
+    
+    Returns:
+        Confirmación
+    """
+    global scheduler
+    
+    if scheduler is None:
+        return jsonify({
+            "success": False,
+            "message": "Scheduler no inicializado"
+        }), 400
+    
+    if not scheduler.running:
+        return jsonify({
+            "success": False,
+            "message": "Scheduler ya está pausado"
+        }), 400
+    
+    try:
+        scheduler.pause()
+        logger.warning("⏸️  SCHEDULER PAUSADO MANUALMENTE")
+        return jsonify({
+            "success": True,
+            "message": "Scheduler pausado correctamente"
+        }), 200
+    except Exception as e:
+        logger.error(f"Error al pausar scheduler: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route("/sync/scheduler/resume", methods=["POST"])
+@require_api_key
+def resume_scheduler() -> tuple[Dict[str, Any], int]:
+    """
+    Reanuda el scheduler automático
+    Requiere header: x-api-key
+    
+    Returns:
+        Confirmación
+    """
+    global scheduler
+    
+    if scheduler is None:
+        return jsonify({
+            "success": False,
+            "message": "Scheduler no inicializado"
+        }), 400
+    
+    if scheduler.running:
+        return jsonify({
+            "success": False,
+            "message": "Scheduler ya está activo"
+        }), 400
+    
+    try:
+        scheduler.resume()
+        logger.warning("▶️  SCHEDULER REANUDADO MANUALMENTE")
+        return jsonify({
+            "success": True,
+            "message": "Scheduler reanudado correctamente"
+        }), 200
+    except Exception as e:
+        logger.error(f"Error al reanudar scheduler: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
 if __name__ == "__main__":
     import os
     port = int(os.environ.get('PORT', settings.port))
