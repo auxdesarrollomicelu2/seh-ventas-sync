@@ -46,7 +46,7 @@ class GHLClient:
         """Headers para peticiones a GHL"""
         return {
             "Authorization": f"Bearer {self.token}",
-            "Version": "2021-07-28",
+            "Version": "v3",  # API v3 según documentación oficial
             "Content-Type": "application/json"
         }
     
@@ -111,7 +111,7 @@ class GHLClient:
         url = f"{self.base_url}/opportunities/search"
         
         params = {
-            "location_id": self.location_id,
+            "locationId": self.location_id,  # camelCase según API GHL
             "pipelineId": self.pipeline_id,
             "q": nombre_oportunidad
         }
@@ -169,7 +169,7 @@ class GHLClient:
             )
             return "dry_run_opportunity_id"
         
-        url = f"{self.base_url}/opportunities"
+        url = f"{self.base_url}/opportunities/"
         
         oportunidad = GHLOportunidad(
             pipelineId=self.pipeline_id,
