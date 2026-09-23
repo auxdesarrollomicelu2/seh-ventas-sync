@@ -35,7 +35,12 @@ def sincronizar_ventas() -> Dict[str, Any]:
         ventas = obtener_ventas_para_sincronizar(settings.sync_desde)
         total = len(ventas)
         
-        logger.info(f"Ventas a procesar: {total}")
+        logger.info(f"📊 Ventas encontradas en BD: {total}")
+        
+        # 🧪 MODO PRUEBA: Limitar a 1 venta
+        if total > 0:
+            ventas = ventas[:1]  # Solo la primera venta
+            logger.warning(f"🧪 MODO PRUEBA: Limitando a {len(ventas)} venta(s) para testing")
         
         for venta in ventas:
             order_id = venta['order_id']
@@ -43,11 +48,15 @@ def sincronizar_ventas() -> Dict[str, Any]:
             telefono_crudo = venta.get('phone_number', '')
             valor = float(venta.get('total_amount', 0))
             
-            logger.info(f"\n--- Procesando venta {order_number} (ID: {order_id}) ---")
+            logger.info(f"\n{'='*60}")
+            logger.info(f"📦 Procesando venta #{procesadas + omitidas + errores + 1}/{len(ventas)}")
+            logger.info(f"   Order: {order_number} (ID: {order_id})")
+            logger.info(f"   Valor: ${valor:,.0f}")
+            logger.info(f"   Teléfono crudo: {enmascarar_telefono(telefono_crudo)}")
             
             # Validar teléfono
             if not telefono_crudo:
-                logger.warning(f"Venta {order_number}: sin teléfono, omitida")
+                logger.warning(f"❌ Venta {order_number}: sin teléfono, omitida")
                 errores += 1
                 errores_detalle.append({
                     "order_number": order_number,
@@ -58,9 +67,9 @@ def sincronizar_ventas() -> Dict[str, Any]:
             # Normalizar teléfono
             try:
                 telefono_normalizado = normalizar_telefono_colombiano(telefono_crudo)
-                logger.info(f"Teléfono normalizado: {enmascarar_telefono(telefono_normalizado)}")
+                logger.info(f"✅ Teléfono normalizado: {enmascarar_telefono(telefono_normalizado)}")
             except ValueError as e:
-                logger.error(f"Venta {order_number}: teléfono inválido - {e}")
+                logger.error(f"❌ Venta {order_number}: teléfono inválido - {e}")
                 errores += 1
                 errores_detalle.append({
                     "order_number": order_number,
@@ -70,21 +79,26 @@ def sincronizar_ventas() -> Dict[str, Any]:
             
             # Verificar idempotencia: buscar si ya existe la oportunidad
             nombre_oportunidad = f"Venta {order_number}"
+            logger.info(f"🔍 Buscando en GHL: '{nombre_oportunidad}'...")
+            
             opp_existente = ghl_client.buscar_oportunidad_por_nombre(nombre_oportunidad)
             
             if opp_existente:
-                logger.info(f"Venta {order_number}: ya existe oportunidad {opp_existente}, omitida")
+                logger.info(f"⏭️  Ya existe oportunidad {opp_existente}, omitida")
                 omitidas += 1
                 continue
             
+            logger.info(f"🆕 No existe en GHL, procediendo a crear...")
+            
             # Upsert contacto
+            logger.info(f"👤 Creando/actualizando contacto...")
             contacto_id = ghl_client.upsert_contacto(
                 telefono=telefono_normalizado,
-                nombre=None  # Por ahora sin nombre
+                nombre=None
             )
             
             if not contacto_id:
-                logger.error(f"Venta {order_number}: fallo al crear/actualizar contacto")
+                logger.error(f"❌ Venta {order_number}: fallo al crear/actualizar contacto")
                 errores += 1
                 errores_detalle.append({
                     "order_number": order_number,
@@ -92,7 +106,10 @@ def sincronizar_ventas() -> Dict[str, Any]:
                 })
                 continue
             
+            logger.info(f"✅ Contacto: {contacto_id}")
+            
             # Crear oportunidad
+            logger.info(f"💼 Creando oportunidad con valor ${valor:,.0f}...")
             oportunidad_id = ghl_client.crear_oportunidad(
                 contacto_id=contacto_id,
                 nombre_oportunidad=nombre_oportunidad,
@@ -100,7 +117,7 @@ def sincronizar_ventas() -> Dict[str, Any]:
             )
             
             if not oportunidad_id:
-                logger.error(f"Venta {order_number}: fallo al crear oportunidad")
+                logger.error(f"❌ Venta {order_number}: fallo al crear oportunidad")
                 errores += 1
                 errores_detalle.append({
                     "order_number": order_number,
@@ -109,13 +126,20 @@ def sincronizar_ventas() -> Dict[str, Any]:
                 continue
             
             # Éxito
-            logger.info(
-                f"✓ Venta {order_number} sincronizada: "
-                f"contacto={contacto_id}, oportunidad={oportunidad_id}"
-            )
+            logger.info(f"✅ ÉXITO: Venta {order_number} sincronizada")
+            logger.info(f"   └─ Contacto: {contacto_id}")
+            logger.info(f"   └─ Oportunidad: {oportunidad_id}")
             procesadas += 1
         
+        logger.info(f"\n{'='*60}")
         logger.info("=== Sincronización completada ===")
+        logger.info(f"📊 Resumen:")
+        logger.info(f"   Total encontradas: {total}")
+        logger.info(f"   ✅ Procesadas: {procesadas}")
+        logger.info(f"   ⏭️  Omitidas: {omitidas}")
+        logger.info(f"   ❌ Errores: {errores}")
+        logger.info(f"   🧪 DRY_RUN: {settings.dry_run}")
+        logger.info(f"{'='*60}\n")
         
         resumen = {
             "total": total,
