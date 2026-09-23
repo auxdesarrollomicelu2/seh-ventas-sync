@@ -34,9 +34,11 @@ def obtener_ventas(desde: str, limite: int = 500) -> List[Dict[str, Any]]:
             o.total_amount,
             o.customer_document,
             a.phone_number,
-            a.city
+            a.city,
+            u.first_name
         FROM public.orders o
         LEFT JOIN public.addresses a ON o.address_id = a.address_id
+        LEFT JOIN public.users u ON o.user_id = u.user_id
         WHERE o.payment_status = 'PAID'
           AND o.created_at >= %s
         ORDER BY o.created_at DESC
@@ -71,9 +73,11 @@ def obtener_ventas_para_sincronizar(desde: str) -> List[Dict[str, Any]]:
             o.total_amount,
             o.customer_document,
             a.phone_number,
-            a.city
+            a.city,
+            u.first_name
         FROM public.orders o
         LEFT JOIN public.addresses a ON o.address_id = a.address_id
+        LEFT JOIN public.users u ON o.user_id = u.user_id
         WHERE o.payment_status = 'PAID'
           AND o.created_at >= %s
         ORDER BY o.created_at ASC

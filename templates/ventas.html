@@ -310,8 +310,9 @@
         <div class="card">
             <div class="info-banner">
                 <strong>ℹ️ Información del sistema:</strong><br>
-                • Sincronización automática cada <strong>30 minutos</strong><br>
-                • Modo: <strong>DRY_RUN activado</strong> (pruebas, no escribe en GHL)<br>
+                • Sincronización automática cada <strong>10 minutos</strong> (modo prueba)<br>
+                • Modo: <strong>DRY_RUN desactivado</strong> ⚠️ (escribe en GHL real)<br>
+                • Limitado a <strong>1 venta por ejecución</strong> para testing<br>
                 • Endpoint: <strong>https://seh-ventas-sync-production.up.railway.app</strong>
             </div>
         </div>
@@ -323,10 +324,11 @@
                     <input type="date" id="fecha-desde" value="{{ fecha_default }}" max="{{ fecha_hoy }}">
                     <button onclick="cargarVentas()">🔍 Consultar Ventas</button>
                     <button onclick="limpiar()" style="background: #6b7280;">🔄 Limpiar</button>
+                    <button onclick="ejecutarSync()" style="background: #059669;">⚡ Ejecutar Sync Ahora</button>
                 </div>
                 <small>
                     💡 Mostrando ventas desde el <strong>{{ fecha_default }}</strong> hasta hoy. 
-                    El scheduler sincroniza automáticamente cada 30 minutos.
+                    El scheduler sincroniza automáticamente cada 10 minutos. Usa "Ejecutar Sync Ahora" para forzar sincronización manual.
                 </small>
             </div>
         </div>
@@ -498,6 +500,76 @@
                         <strong>Error al cargar ventas:</strong> ${error.message}
                     </div>
                 `;
+            }
+        }
+        
+        async function ejecutarSync() {
+            if (!confirm('¿Ejecutar sincronización con GHL ahora? Esto procesará 1 venta en modo de prueba.')) {
+                return;
+            }
+            
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '⏳ Sincronizando...';
+            btn.style.opacity = '0.6';
+            
+            document.getElementById('error-container').innerHTML = '';
+            
+            try {
+                const response = await fetch('/sync/run', {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': API_KEY
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                
+                const resultado = await response.json();
+                
+                // Mostrar resultado
+                let mensaje = `
+                    <div style="background: #d1fae5; border-left: 4px solid #059669; padding: 16px; border-radius: 6px; margin-top: 20px;">
+                        <strong>✅ Sincronización completada</strong><br><br>
+                        📊 <strong>Resumen:</strong><br>
+                        • Total encontradas: ${resultado.total}<br>
+                        • ✅ Procesadas: ${resultado.procesadas}<br>
+                        • ⏭️ Omitidas: ${resultado.omitidas}<br>
+                        • ❌ Errores: ${resultado.errores}<br>
+                        • 🧪 Modo: ${resultado.dry_run ? 'DRY_RUN (simulación)' : 'REAL (escribiendo en GHL)'}
+                `;
+                
+                if (resultado.errores_detalle && resultado.errores_detalle.length > 0) {
+                    mensaje += '<br><br><strong>Detalles de errores:</strong><br>';
+                    resultado.errores_detalle.forEach(err => {
+                        mensaje += `• ${err.order_number}: ${err.error}<br>`;
+                    });
+                }
+                
+                if (resultado.error_general) {
+                    mensaje += `<br><br><strong>⚠️ Error general:</strong> ${resultado.error_general}`;
+                }
+                
+                mensaje += '</div>';
+                
+                document.getElementById('error-container').innerHTML = mensaje;
+                
+                // Auto-scroll al mensaje
+                document.getElementById('error-container').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                
+            } catch (error) {
+                document.getElementById('error-container').innerHTML = `
+                    <div class="error-message">
+                        <strong>❌ Error al ejecutar sincronización:</strong> ${error.message}
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+                btn.style.opacity = '1';
             }
         }
     </script>

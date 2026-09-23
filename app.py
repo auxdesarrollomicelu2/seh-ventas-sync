@@ -132,6 +132,7 @@ def listar_ventas() -> tuple[Dict[str, Any], int]:
                 "id_venta": v['order_id'],
                 "order_number": v['order_number'],
                 "user_id": v['user_id'],
+                "nombre_cliente": v.get('first_name'),
                 "telefono_crudo": telefono_crudo,
                 "telefono_normalizado": telefono_normalizado,
                 "error_telefono": error_telefono,

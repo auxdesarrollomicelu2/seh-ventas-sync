@@ -37,20 +37,22 @@ def sincronizar_ventas() -> Dict[str, Any]:
         
         logger.info(f"📊 Ventas encontradas en BD: {total}")
         
-        # 🧪 MODO PRUEBA: Limitar a 1 venta
-        if total > 0:
-            ventas = ventas[:1]  # Solo la primera venta
-            logger.warning(f"🧪 MODO PRUEBA: Limitando a {len(ventas)} venta(s) para testing")
+        # 🧪 MODO PRUEBA: Procesar hasta encontrar 1 venta nueva (que no exista en GHL)
+        max_ventas_a_revisar = min(10, total)  # Revisar máximo 10 ventas para encontrar 1 nueva
+        ventas_a_procesar = ventas[:max_ventas_a_revisar]
+        logger.warning(f"🧪 MODO PRUEBA: Revisando hasta {max_ventas_a_revisar} ventas para encontrar 1 nueva")
         
-        for venta in ventas:
+        for venta in ventas_a_procesar:
             order_id = venta['order_id']
             order_number = venta['order_number']
             telefono_crudo = venta.get('phone_number', '')
             valor = float(venta.get('total_amount', 0))
+            nombre_cliente = venta.get('first_name')  # Puede ser None
             
             logger.info(f"\n{'='*60}")
             logger.info(f"📦 Procesando venta #{procesadas + omitidas + errores + 1}/{len(ventas)}")
             logger.info(f"   Order: {order_number} (ID: {order_id})")
+            logger.info(f"   Cliente: {nombre_cliente or 'Sin nombre'}")
             logger.info(f"   Valor: ${valor:,.0f}")
             logger.info(f"   Teléfono crudo: {enmascarar_telefono(telefono_crudo)}")
             
@@ -94,7 +96,7 @@ def sincronizar_ventas() -> Dict[str, Any]:
             logger.info(f"👤 Creando/actualizando contacto...")
             contacto_id = ghl_client.upsert_contacto(
                 telefono=telefono_normalizado,
-                nombre=None
+                nombre=nombre_cliente  # Ahora incluye el nombre
             )
             
             if not contacto_id:
@@ -125,11 +127,28 @@ def sincronizar_ventas() -> Dict[str, Any]:
                 })
                 continue
             
+            logger.info(f"✅ Oportunidad creada: {oportunidad_id}")
+            
+            # Agregar tag seh_cliente_compro
+            logger.info(f"🏷️  Agregando tag 'seh_cliente_compro'...")
+            tag_agregado = ghl_client.agregar_tag_contacto(contacto_id, "seh_cliente_compro")
+            
+            if tag_agregado:
+                logger.info(f"✅ Tag agregado correctamente")
+            else:
+                logger.warning(f"⚠️  No se pudo agregar el tag (no crítico)")
+            
             # Éxito
             logger.info(f"✅ ÉXITO: Venta {order_number} sincronizada")
             logger.info(f"   └─ Contacto: {contacto_id}")
             logger.info(f"   └─ Oportunidad: {oportunidad_id}")
+            logger.info(f"   └─ Tag: {'✅' if tag_agregado else '⚠️'}")
             procesadas += 1
+            
+            # 🧪 MODO PRUEBA: Detener después de procesar 1 venta exitosa
+            if procesadas >= 1:
+                logger.warning(f"🧪 MODO PRUEBA: Se procesó 1 venta exitosamente, deteniendo...")
+                break
         
         logger.info(f"\n{'='*60}")
         logger.info("=== Sincronización completada ===")

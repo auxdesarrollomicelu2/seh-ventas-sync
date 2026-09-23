@@ -50,6 +50,46 @@ class GHLClient:
             "Content-Type": "application/json"
         }
     
+    def agregar_tag_contacto(self, contacto_id: str, tag: str) -> bool:
+        """
+        Agrega un tag a un contacto en GHL
+        
+        Args:
+            contacto_id: ID del contacto en GHL
+            tag: Nombre del tag a agregar
+            
+        Returns:
+            True si se agregó correctamente, False si falló
+        """
+        if settings.dry_run:
+            logger.info(f"[DRY_RUN] Agregar tag '{tag}' al contacto {contacto_id}")
+            return True
+        
+        url = f"{self.base_url}/contacts/{contacto_id}/tags"
+        
+        payload = {
+            "tags": [tag]
+        }
+        
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    url,
+                    headers=self._get_headers(),
+                    json=payload
+                )
+                
+                if response.status_code in [200, 201]:
+                    logger.info(f"Tag '{tag}' agregado al contacto {contacto_id}")
+                    return True
+                else:
+                    logger.error(f"Error agregar tag: {response.status_code} - {response.text}")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Excepción agregar tag: {e}", exc_info=True)
+            return False
+    
     def upsert_contacto(self, telefono: str, nombre: Optional[str] = None) -> Optional[str]:
         """
         Crea o actualiza contacto en GHL por teléfono
