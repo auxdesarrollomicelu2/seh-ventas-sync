@@ -65,9 +65,11 @@ def index() -> str:
     """
     Página principal con visualizador de ventas
     """
-    # Fecha por defecto: hace 7 días
-    fecha_default = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-    return render_template('ventas.html', fecha_default=fecha_default)
+    # Fecha por defecto: primer día del mes actual
+    hoy = datetime.now()
+    fecha_default = hoy.replace(day=1).strftime('%Y-%m-%d')
+    fecha_hoy = hoy.strftime('%Y-%m-%d')
+    return render_template('ventas.html', fecha_default=fecha_default, fecha_hoy=fecha_hoy)
 
 
 @app.route("/health", methods=["GET"])
