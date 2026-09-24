@@ -129,9 +129,9 @@ def sincronizar_ventas() -> Dict[str, Any]:
             logger.info(f"   ✅ Sincronizada → Contacto: {contacto_id[:8]}... | Opp: {oportunidad_id[:8]}... | Tag: {'✅' if tag_agregado else '⚠️'}")
             procesadas += 1
             
-            # 🧪 MODO PRUEBA: Detener después de procesar 1 venta exitosa
-            if procesadas >= 1:
-                logger.info(f"🛑 Límite alcanzado (1 venta procesada)")
+            # 🧪 MODO PRUEBA: Detener después de procesar 3 ventas exitosas
+            if procesadas >= 3:
+                logger.info(f"🛑 Límite alcanzado ({procesadas} ventas procesadas)")
                 break
         
         logger.info(f"📊 Resumen: Total:{total} | ✅ {procesadas} | ⏭️ {omitidas} | ❌ {errores}")
