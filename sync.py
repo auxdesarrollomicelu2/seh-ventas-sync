@@ -29,22 +29,24 @@ def sincronizar_ventas() -> Dict[str, Any]:
     errores_detalle = []
     
     try:
-        # Obtener ventas para sincronizar
+        # Obtener ventas para sincronizar desde SYNC_DESDE
         ventas = obtener_ventas_para_sincronizar(settings.sync_desde)
         total = len(ventas)
         
-        logger.info(f"📊 {total} ventas encontradas desde {settings.sync_desde}")
+        logger.info(f"📊 {total} ventas desde {settings.sync_desde}")
         
-        # 🧪 MODO PRUEBA: Procesar hasta encontrar 1 venta nueva (que no exista en GHL)
-        max_ventas_a_revisar = min(10, total)  # Revisar máximo 10 ventas para encontrar 1 nueva
-        ventas_a_procesar = ventas[:max_ventas_a_revisar]
-        
-        for venta in ventas_a_procesar:
+        # Procesar hasta 5 ventas exitosas, revisando lo necesario
+        for venta in ventas:
+            # Detener si ya procesamos 5 exitosamente
+            if procesadas >= 5:
+                logger.info(f"🛑 Límite alcanzado ({procesadas} ventas procesadas)")
+                break
+            
             order_id = venta['order_id']
             order_number = venta['order_number']
             telefono_crudo = venta.get('phone_number', '')
             valor = float(venta.get('total_amount', 0))
-            nombre_cliente = venta.get('first_name')  # Puede ser None
+            nombre_cliente = venta.get('first_name')
             
             logger.info(f"📦 {order_number} | {nombre_cliente or 'Sin nombre'} | ${valor:,.0f}")
             
@@ -128,11 +130,6 @@ def sincronizar_ventas() -> Dict[str, Any]:
             # Éxito
             logger.info(f"   ✅ Sincronizada → Contacto: {contacto_id[:8]}... | Opp: {oportunidad_id[:8]}... | Tag: {'✅' if tag_agregado else '⚠️'}")
             procesadas += 1
-            
-            # 🧪 MODO PRUEBA: Detener después de procesar 3 ventas exitosas
-            if procesadas >= 3:
-                logger.info(f"🛑 Límite alcanzado ({procesadas} ventas procesadas)")
-                break
         
         logger.info(f"📊 Resumen: Total:{total} | ✅ {procesadas} | ⏭️ {omitidas} | ❌ {errores}")
         
